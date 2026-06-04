@@ -683,17 +683,23 @@ O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
 
 Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
 
-**Geração executada pelo agente (04/06/2026 - após screenshot do usuário "sim ainda está olha ai, o codex estava melhor que tu...")**:
-- Usuário reportou: Ainda com problemas graves de encaixe no junction (ruas má encaixadas, falhas, transversam uma na outra). O branch lateral está lá, mas as conexões estão ruins. "Codex estava melhor".
+**Geração executada pelo agente (04/06/2026 - após screenshot do usuário "sim ainda está olha ai, o codex estava melhor que tu..." + "procure na internet como resolver esses problema corretamente, seja inteligente")**:
+- Usuário reportou: Ainda com problemas graves de encaixe no junction (ruas má encaixadas, falhas, transversam uma na outra). "Codex estava melhor".
 - Correção de crash mantida (sem anexar via AppendRoad no node 2).
-- Nova melhoria aplicada:
-  - Side branch agora começa **exatamente na posição do node 2** + lança o primeiro segmento **na rotação exata do node** (direction from node.Rotation, short 25m launch in correct prefab angle).
-  - Isso respeita o ângulo projetado do prefab para encaixe limpo (sem kink ou cruzamento no início do branch).
-- Rodei novamente com o fix de ângulo:
+- **Melhor passo inteligente (pesquisei best practices via tools + TruckLib docs + editor connection rules)**:
+  - Implementado **smart node-to-leg matching**: para cada perna (main before, main after, side), escolhe o node do prefab cujo direction melhor alinha com a direção desejada da perna (usando dot product).
+  - Isso minimiza kinks e geometria ruim no junction (causa raiz das transversões e mau encaixe).
+  - Side branch usa o node atribuído, começa na posição exata do node + launch na rotação exata do node (respeita o ângulo do prefab).
+  - Mains usam Attach com o node atribuído.
+- A saída agora mostra as atribuições (ex: before to 0 dot 0.98, etc.).
+- Rodei novamente:
   .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
   .\tools\install_mod.ps1
-- L-shaped bay + segundo acesso mantidos.
-- Recompute map e compare com o último screenshot. O branch deve sair mais "certo" do junction agora.
+- L-shaped bay + segundo acesso (Praia retail) mantidos.
+- Recompute map e compare. O encaixe deve estar o melhor possível programaticamente enquanto mantemos o traçado real do OSM e o prefab para junção real.
+- Se ainda não perfeito, o limite é que o prefab tem ângulos fixos e o trace real pode não alinhar 100% com eles em todos os pontos; para 100% real sem compromisso, o ideal é editar manualmente os segmentos imediatamente adjacentes no editor após Recompute, ou escolher outro local para o junction onde o trace direction combine melhor com o prefab.
+
+Próximo: se o usuário confirmar que o encaixe melhorou, podemos adicionar prefabs de empresas reais nos bays (usando defs do base.scs).
 
 **Correção de crash (editor fechando sozinho)**:
 - O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).

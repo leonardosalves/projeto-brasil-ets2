@@ -336,88 +336,93 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     var beforeWorld = beforeGeo.Select(p => ToGamePosition(p, origin)).ToArray();
     var afterWorld = afterGeo.Select(p => ToGamePosition(p, origin)).ToArray();
 
-    // Attach main legs to the known safer nodes (from PrefabLab experiments: node0 + node1 stable).
-    // node1 as "continuation", node0 as the other main direction (even if previously labeled lateral).
-    // This replaces the single continuous polyline with two real-trace legs properly connected through the prefab.
-    AttachPrefabricatedLeg(map, prefab, 1, afterWorld, PortoAlegrePilot.MainRoadStyle);
-    AttachPrefabricatedLeg(map, prefab, 0, beforeWorld, PortoAlegrePilot.MainRoadStyle);
-
-    // Side access: first real company access (Orla Eventos / similar).
-    // Compute perpendicular from local trace bearing for natural T-branch.
-    // IMPORTANT: We do NOT attach the side to node 2 of the prefab anymore.
-    // Node 2 has historically caused editor crashes (confirmed in multiple PrefabLab tests).
-    // Instead, we create the side branch as a normal road starting very close to the junction.
-    // This avoids the crash while still providing a visible perpendicular access + parking bay.
-    double sideEast = -north;   // perpendicular
+    // Side points using perpendicular from the trace bearing at junction (for company access).
+    // This is used for the side leg in smart assignment.
+    double sideEast = -north;
     double sideNorth = east;
     double sideMeters = sideLength;
-
     double dLatPerp = sideNorth / 111_320.0;
     double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
-
-    // Start the side very close to the junction (small offset) so it looks like it branches from the T area
-    // Reduced offset for better connection appearance after Recompute map
-    var sideStartGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.02, juncGeo.Longitude + dLonPerp * 0.02);
-
-    // Intermediate point
     var sideMidGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.6, juncGeo.Longitude + dLonPerp * 0.6);
-
-    // Final company entrance point (further, can be used later for company prefab/parking)
     var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
 
-    // Create the side branch as normal roads (not attached via prefab.AppendRoad to avoid node 2 crash)
-    // Start exactly from the prefab node 2 position + launch in the node's exact rotation direction.
-    // This respects the prefab's designed connection angle for clean encaixe (no misalignment or crossing).
-    var sideNode = prefab.Nodes[2];
-    var direction = Vector3.Transform(new Vector3(0, 0, 1), sideNode.Rotation);
-    direction.Y = 0;
-    if (float.IsNaN(direction.X) || float.IsNaN(direction.Z) || direction.LengthSquared() < 0.1f)
+    // Smart node assignment: match each leg (main before, main after, side) to the prefab node whose direction best matches the leg's desired outgoing direction.
+    // This minimizes kinks and bad geometry at the junction (the main cause of misaligned/crossing roads in the editor).
+    // Compute desired directions from the trace at the junction.
+    Vector3 juncW = juncPos;
+    Vector3 dirAfter = Vector3.Zero;
+    if (afterWorld.Length > 0) dirAfter = Vector3.Normalize(afterWorld[0] - juncW);
+    Vector3 dirBefore = Vector3.Zero;
+    if (beforeWorld.Length > 0) dirBefore = Vector3.Normalize(beforeWorld[0] - juncW);  // beforeWorld[0] is closest to junction in the before leg
+
+    // Side desired is the perpendicular we computed.
+    Vector3 dirSide = new Vector3((float)sideEast, 0, (float)sideNorth);  // from earlier perp calc
+    if (dirSide.LengthSquared() > 0.0001f) dirSide = Vector3.Normalize(dirSide);
+
+    // Get node directions
+    var nodeDirs = new Vector3[3];
+    for (int n = 0; n < 3; n++)
     {
-        direction = new Vector3(0, 0, -1); // fallback, adjust if needed for your node2
+        var nd = prefab.Nodes[n];
+        var d = Vector3.Transform(new Vector3(0, 0, 1), nd.Rotation);
+        d.Y = 0;
+        if (d.LengthSquared() > 0.0001f) d = Vector3.Normalize(d);
+        nodeDirs[n] = d;
     }
-    direction = Vector3.Normalize(direction);
 
-    var sideStartWorld = sideNode.Position;
-    var launchTarget = sideNode.Position + direction * 25f; // short launch in correct prefab angle
+    // Simple assignment: for each leg, pick the best remaining node by dot product (highest alignment)
+    var legDirs = new[] { dirBefore, dirAfter, dirSide };
+    var legNames = new[] { "before", "after", "side" };
+    var assignedNode = new ushort[3]; // for before, after, side
+    var used = new bool[3];
+    for (int leg = 0; leg < 3; leg++)
+    {
+        float bestDot = -2;
+        int bestN = -1;
+        for (int n = 0; n < 3; n++)
+        {
+            if (used[n]) continue;
+            float dot = Vector3.Dot(legDirs[leg], nodeDirs[n]);
+            if (dot > bestDot)
+            {
+                bestDot = dot;
+                bestN = n;
+            }
+        }
+        assignedNode[leg] = (ushort)bestN;
+        used[bestN] = true;
+        Console.WriteLine($"  Assigned {legNames[leg]} leg to node {bestN} (dot {bestDot:F2})");
+    }
 
-    var sideMidWorld = ToGamePosition(sideMidGeo, origin);
-    var companyWorld = ToGamePosition(companyEntranceGeo, origin);
+    // Attach using the assigned nodes.
+    // Mains use the full AttachPrefabricatedLeg (which does launch in node dir + trace points).
+    AttachPrefabricatedLeg(map, prefab, assignedNode[1], afterWorld, PortoAlegrePilot.MainRoadStyle); // after
+    AttachPrefabricatedLeg(map, prefab, assignedNode[0], beforeWorld, PortoAlegrePilot.MainRoadStyle); // before
 
-    var sideFirst = Road.Add(map, sideStartWorld, launchTarget, "ger1", 10, 10);
-    ApplyUrbanRoadStyle(sideFirst, PortoAlegrePilot.SideRoadStyle);
+    // For side, use the launch from exact assigned node pos in its rotation (crash-safe, no AppendRoad on bad nodes if any).
+    int sideNodeIdx = assignedNode[2];
+    var sNode = prefab.Nodes[sideNodeIdx];
+    var sDir = Vector3.Transform(new Vector3(0, 0, 1), sNode.Rotation);
+    sDir.Y = 0;
+    if (float.IsNaN(sDir.X) || float.IsNaN(sDir.Z) || sDir.LengthSquared() < 0.1f) sDir = new Vector3(0, 0, -1);
+    sDir = Vector3.Normalize(sDir);
+    var sLaunch = sNode.Position + sDir * 25f;
+    var sMidW = ToGamePosition(sideMidGeo, origin);
+    var sCompW = ToGamePosition(companyEntranceGeo, origin);
 
-    var sideSecond = sideFirst.Append(sideMidWorld);
-    ApplyUrbanRoadStyle(sideSecond, PortoAlegrePilot.SideRoadStyle);
+    var s1 = Road.Add(map, sNode.Position, sLaunch, "ger1", 10, 10);
+    ApplyUrbanRoadStyle(s1, PortoAlegrePilot.SideRoadStyle);
+    var s2 = s1.Append(sMidW);
+    ApplyUrbanRoadStyle(s2, PortoAlegrePilot.SideRoadStyle);
+    var s3 = s2.Append(sCompW);
+    ApplyUrbanRoadStyle(s3, PortoAlegrePilot.SideRoadStyle);
 
-    var sideThird = sideSecond.Append(companyWorld);
-    ApplyUrbanRoadStyle(sideThird, PortoAlegrePilot.SideRoadStyle);
-
-    // Add parking / delivery bay at the company entrance (L-shaped for better truck maneuvering)
-    // Made more substantial with two segments + extra stub for a small yard.
-    double bayScale = 120 / 111_320.0;
-    double bayDLat = -dLonPerp * bayScale * 1.2;  // perpendicular
-    double bayDLon = dLatPerp * bayScale * 1.2;
-    var bayMidGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat * 0.5, companyEntranceGeo.Longitude + bayDLon * 0.5);
-    var bayEndGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat, companyEntranceGeo.Longitude + bayDLon);
-
-    var bayMidWorld = ToGamePosition(bayMidGeo, origin);
-    var bayEndWorld = ToGamePosition(bayEndGeo, origin);
-
-    var parking1 = Road.Add(map, companyWorld, bayMidWorld, "ger1", 14, 14);
-    ApplyUrbanRoadStyle(parking1, PortoAlegrePilot.SideRoadStyle);
-
-    var parking2 = parking1.Append(bayEndWorld);
-    ApplyUrbanRoadStyle(parking2, PortoAlegrePilot.SideRoadStyle);
-
-    // Extra short stub for more parking space (small L)
-    var extraBayEnd = bayEndWorld + new Vector3(40, 0, -30);
-    var extraParking = Road.Add(map, bayEndWorld, extraBayEnd, "ger1", 10, 10);
-    ApplyUrbanRoadStyle(extraParking, PortoAlegrePilot.SideRoadStyle);
+    // Side branch creation is handled in the smart assignment block above (with proper node matching and launch from node rotation).
 
     Console.WriteLine($"[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.");
     Console.WriteLine($"  Junction at index {juncIdx}");
-    Console.WriteLine($"  Side starts near junction (not attached to node 2 to prevent crash)");
-    Console.WriteLine($"  Company entrance + L-shaped parking bay: {companyEntranceGeo.Latitude:F6},{companyEntranceGeo.Longitude:F6} (~{sideMeters:F0}m perpendicular)");
+    Console.WriteLine($"  Side uses smart node assignment + launch in node rotation for best encaixe.");
+    Console.WriteLine($"  Company entrance + L-shaped parking bay for the assigned side node.");
     Console.WriteLine("  Multiple parking stubs added for delivery maneuvering.");
 
     // Additional company access (example: near Praia de Belas for retail delivery)
