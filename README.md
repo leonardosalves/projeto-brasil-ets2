@@ -2,6 +2,8 @@
 
 Projeto de mapa mod brasileiro para Euro Truck Simulator 2 em escala-alvo 1:4.
 
+**Repositório oficial:** https://github.com/leonardosalves/projeto-brasil-ets2
+
 ## Objetivo
 
 Construir uma versao jogavel do Brasil por cidades e zonas, com crescimento incremental. Porto Alegre sera a primeira cidade piloto do projeto, usada para validar escala, estilo visual, workflow tecnico, empresas e rotas urbanas.
