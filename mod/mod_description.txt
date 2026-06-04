@@ -1,0 +1,11 @@
+Projeto Brasil 1:4 Map - WIP
+
+Mapa brasileiro em desenvolvimento para Euro Truck Simulator 2.
+
+Versao 0.1.0:
+- Scaffold inicial do pacote.
+- Planejamento inicial por cidades e zonas.
+- Primeira cidade piloto: Porto Alegre, RS.
+- Primeira zona planejada: Centro Historico, Gasometro, Orla e Praia de Belas.
+
+Observacao: os setores jogaveis do mapa precisam ser criados e salvos pelo Map Editor do ETS2.

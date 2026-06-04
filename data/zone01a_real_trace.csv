@@ -1,0 +1,24 @@
+# route,lat,lon,note
+# Fonte: OpenStreetMap via Overpass, consulta feita em 2026-06-04.
+# Trecho piloto: Gasometro / Orla / Edvaldo Pereira Paiva / Praia de Belas / Centro.
+#
+# Para geração com junção (T-junction): o gerador usa por padrão o índice 5 (edvaldo_pereira_paiva_orla)
+# como local do prefab de cruzamento. Isso divide o traço em "before" (perna Gasômetro) e "after".
+# Ajuste o índice no Program.cs (juncIdx) se o posicionamento visual não ficar bom após Recompute map.
+# Mais pontos precisos (especialmente Borges de Medeiros) podem ser adicionados aqui futuramente.
+zone01a,-30.0308411,-51.2381209,presidente_joao_goulart_centro
+zone01a,-30.0315078,-51.2387896,presidente_joao_goulart_gasometro
+zone01a,-30.0320664,-51.2390503,presidente_joao_goulart
+zone01a,-30.0345795,-51.2405451,presidente_joao_goulart
+zone01a,-30.0355241,-51.2411067,presidente_joao_goulart_orla
+zone01a,-30.0368300,-51.2413859,edvaldo_pereira_paiva_orla
+zone01a,-30.0397001,-51.2412639,edvaldo_pereira_paiva_orla
+zone01a,-30.0423396,-51.2380189,edvaldo_pereira_paiva_orla
+zone01a,-30.0425847,-51.2352509,edvaldo_pereira_paiva_orla
+zone01a,-30.0469128,-51.2317909,edvaldo_pereira_paiva_orla
+zone01a,-30.0476794,-51.2276502,praia_de_belas_conexao
+zone01a,-30.0459466,-51.2273404,praia_de_belas
+zone01a,-30.0442395,-51.2276020,praia_de_belas
+zone01a,-30.0402000,-51.2262000,borges_de_medeiros_aproximado
+zone01a,-30.0348000,-51.2261000,borges_de_medeiros_aproximado
+zone01a,-30.0302000,-51.2260000,borges_de_medeiros_centro_aproximado
