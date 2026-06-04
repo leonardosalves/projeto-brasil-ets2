@@ -616,7 +616,7 @@ Se o mapa fechar sozinho no load:
 
 **O que o mapa contém agora (após Recompute no editor):**
 - Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace.
-- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~50-60m, perpendicular ao approach) para manobra de caminhão. Nome: Orla Eventos (primeira entrega).
+- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~100m+, perpendicular ao approach) para manobra de caminhão. Nome: Orla Eventos (primeira entrega).
 - Sem duplicação de pontos de fechamento de loop.
 - Limpeza automática de autosave / .bak / user_map feita pelo script.
 
@@ -635,8 +635,9 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 
 **Para validar:**
 - Abra com `-edit projeto_brasil -noworkshop`
-- `Map > Recompute map`
-- Compare com o screenshot U-shape anterior: o T + branch lateral + parking bay no final devem estar visíveis.
+- `Map > Recompute map` (essencial!)
+- Se não vir o branch: rode com as flags --with-junction (veja seção Troubleshooting abaixo).
+- O T + branch lateral + parking bay (agora ~100m+) devem estar visíveis saindo do junction.
 - O bay é o espaço para a primeira entrega (caminhão pode manobrar ali).
 - Use o console do gerador para ver exatamente para onde cada node está apontando.
 
@@ -650,7 +651,31 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 - `dist/projeto_brasil_1_4_map.scs`
 - Instalado normalmente em `Documents\Euro Truck Simulator 2\mod\`
 
-**Próxima ação esperada do usuário:** Rodar a geração com as flags acima (agora com parking bay), abrir no editor, fazer Recompute, e enviar novo screenshot + feedback. O bay deve permitir que o caminhão "estacione" para entrega. Próximos: adicionar prefab de empresa real no bay ou refinar pontos do CSV para melhor forma do U.
+**Troubleshooting - Usuário não conseguiu ver o T-junction / side / bay no mapa (screenshot fornecido em 04/06):**
+
+Na imagem enviada, o traçado aparece como uma única polyline contínua em U (sem branch saindo). Isso indica que provavelmente foi gerado **sem a flag --with-junction** (modo default = traçado contínuo único).
+
+Passos para ver o junction + side + parking bay:
+1. Rode o comando recomendado com as flags:
+   .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
+2. .\tools\install_mod.ps1
+3. Abra o editor: -edit projeto_brasil -noworkshop
+4. **Obrigatório:** Map > Recompute map (para "cozinhar" o prefab e os roads anexados).
+5. Procure o T (pequena área pavimentada ou cruzamento) na parte inicial da Orla (braço esquerdo/curvo do U, índice 5).
+6. Do nó do prefab deve sair o branch lateral perpendicular (com seus próprios pontos vermelhos).
+7. No final do branch, procure o parking bay (stub curto saindo para o lado, agora com ~100m+ para melhor visibilidade e manobra).
+
+Se ainda não aparecer:
+- Tente --side-length 400 (bay maior).
+- Mude o índice: --junction-index 4 ou 6 ou 7 (testar um por um).
+- No editor, use a ferramenta de seleção de itens ou "Map > Recompute map" de novo.
+- Verifique se não tem autosave antigo carregando (delete a pasta autosave/projeto_brasil se necessário).
+
+O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
+
+Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
+
+**Próxima ação esperada do usuário:** Testar com as flags acima + Recompute e mandar novo print. Próximos passos do projeto: adicionar prefab real de empresa no bay ou refinar pontos do CSV.
 
 ## Infraestrutura - Repositório GitHub
 
