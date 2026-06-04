@@ -675,7 +675,19 @@ O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
 
 Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
 
-**Próxima ação esperada do usuário:** Testar com as flags acima + Recompute e mandar novo print. Próximos passos do projeto: adicionar prefab real de empresa no bay ou refinar pontos do CSV.
+**Geração executada pelo agente (04/06/2026 - após "rode os comandos necessário")**:
+- Rodei exatamente:
+  .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
+  .\tools\install_mod.ps1
+- Saída do gerador confirmada:
+  [Junction] ... FIRST COMPANY ACCESS generated.
+    Side mid: -30.036912,-51.238492
+    Company entrance + parking bay: -30.036966,-51.236562 (~280m perpendicular)
+    Small parking stub added for delivery maneuvering.
+- Mapa gerado no user_map correto + .scs instalado em Documents\Euro Truck Simulator 2\mod\
+- Usuário agora só precisa abrir o editor e Recompute map.
+
+**Próxima ação esperada do usuário:** Abra com `-edit projeto_brasil -noworkshop`, rode `Map > Recompute map`, procure o T-junction (índice 5, início da Orla) + branch lateral + parking bay no final. Mande novo print. Próximos: colocar empresa real (prefab) no bay.
 
 ## Infraestrutura - Repositório GitHub
 
