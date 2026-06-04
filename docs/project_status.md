@@ -685,11 +685,13 @@ Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos
 
 **Geração executada pelo agente (04/06/2026 - após screenshot do usuário "assim ficou, não fechou o map editor")**:
 - Usuário reportou: Mapa abriu sem crash, T-junction visível (com estrutura complexa no screenshot), side branch aparecendo (horizontal), bay ainda básico no print.
+  **Problema reportado**: ruas muito má encaixadas no junction, falhas nas ruas, ou elas transversam uma na outra.
 - Correção de crash mantida (sem node 2).
 - Melhorias aplicadas nesta iteração:
   - Offset inicial do side reduzido para melhor integração visual.
   - Parking bay expandido para L-shaped com múltiplos stubs.
   - Adicionado **segundo acesso a empresa** (exemplo Praia area retail/delivery) em índice ~15 do trace, com side + bay.
+  - **Fix para mau encaixe**: Side branch agora começa **exatamente na posição do node 2 do prefab** (sideStartWorld = prefab.Nodes[2].Position). Isso deve melhorar o encaixe no junction e reduzir transversões/falhas.
 - Rodei novamente:
   .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
   .\tools\install_mod.ps1
@@ -698,7 +700,7 @@ Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos
   - Primeiro acesso Orla com L-bay.
   - Segundo acesso Praia retail.
 - Foco em trajetos baseados em trace OSM real + acessos para maiores pontos de entrega de mercadorias (conforme pedido).
-- .scs instalado. Recompute map para ver os L-bays e os dois acessos.
+- .scs instalado. Recompute map para ver os L-bays e os dois acessos. Verifique se o encaixe melhorou no junction.
 
 **Correção de crash (editor fechando sozinho)**:
 - O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).

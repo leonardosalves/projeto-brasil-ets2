@@ -366,7 +366,9 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
 
     // Create the side branch as normal roads (not attached via prefab.AppendRoad to avoid node 2 crash)
-    var sideStartWorld = ToGamePosition(sideStartGeo, origin);
+    // Start exactly from the prefab node 2 position for better visual connection/encaixe at the junction.
+    var sideNode = prefab.Nodes[2];
+    var sideStartWorld = sideNode.Position;  // exact prefab node position
     var sideMidWorld = ToGamePosition(sideMidGeo, origin);
     var companyWorld = ToGamePosition(companyEntranceGeo, origin);
 
