@@ -636,6 +636,27 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 
 **Próxima ação esperada do usuário:** Rodar a geração com as flags acima, abrir no editor, fazer Recompute, e enviar novo screenshot + feedback (ex: "o branch está apontando para dentro da U, bom" ou "mude o índice para 7" ou "o side ainda precisa de mais comprimento").
 
+## Infraestrutura - Repositório GitHub
+
+- Repositório criado/configurado em GitHub sob a conta `leonardosalves`.
+- Nome: `projeto-brasil-ets2`
+- URL: https://github.com/leonardosalves/projeto-brasil-ets2
+- Branch principal: `master`
+- Todo o código fonte, documentação, scripts e setores do mapa estão versionados.
+- `.gitignore` robusto (exclui extracted_game/, bin/, obj/, .dotnet/, dist/*.scs, logs, temp etc.).
+- **Workflow futuro:** Sempre que houver mudanças relevantes, commit + push para o GitHub (conforme instrução do usuário).
+
+Comandos úteis:
+```powershell
+# Depois de mudanças
+git status
+git add .
+git commit -m "feat: descrição clara da mudança"
+git push
+```
+
+O repositório foi preparado com o estado atual completo do projeto (incluindo Fase 12 + melhorias de orientação do T-junction após o screenshot).
+
 ## Regras para atualizacao deste arquivo
 
 - Atualizar sempre que uma fase for concluida, revertida ou bloqueada.
