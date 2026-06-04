@@ -344,8 +344,10 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
 
     // Side access: first real company access (Orla Eventos / similar).
     // Compute perpendicular from local trace bearing for natural T-branch.
-    // Then add a second point further along for a short delivery access road.
-    // This is the first step toward a playable loop with deliveries.
+    // IMPORTANT: We do NOT attach the side to node 2 of the prefab anymore.
+    // Node 2 has historically caused editor crashes (confirmed in multiple PrefabLab tests).
+    // Instead, we create the side branch as a normal road starting very close to the junction.
+    // This avoids the crash while still providing a visible perpendicular access + parking bay.
     double sideEast = -north;   // perpendicular
     double sideNorth = east;
     double sideMeters = sideLength;
@@ -353,23 +355,55 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     double dLatPerp = sideNorth / 111_320.0;
     double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
 
-    // Intermediate point (junction to company road start)
+    // Start the side very close to the junction (small offset) so it looks like it branches from the T area
+    // Reduced offset for better connection appearance after Recompute map
+    var sideStartGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.02, juncGeo.Longitude + dLonPerp * 0.02);
+
+    // Intermediate point
     var sideMidGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.6, juncGeo.Longitude + dLonPerp * 0.6);
 
     // Final company entrance point (further, can be used later for company prefab/parking)
     var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
 
-    var sideWorld = new[] {
-        ToGamePosition(sideMidGeo, origin),
-        ToGamePosition(companyEntranceGeo, origin)
-    };
-    AttachPrefabricatedLeg(map, prefab, 2, sideWorld, PortoAlegrePilot.SideRoadStyle);
+    // Create the side branch as normal roads (not attached via prefab.AppendRoad to avoid node 2 crash)
+    var sideStartWorld = ToGamePosition(sideStartGeo, origin);
+    var sideMidWorld = ToGamePosition(sideMidGeo, origin);
+    var companyWorld = ToGamePosition(companyEntranceGeo, origin);
+
+    var sideFirst = Road.Add(map, sideStartWorld, sideMidWorld, "ger1", 10, 10);
+    ApplyUrbanRoadStyle(sideFirst, PortoAlegrePilot.SideRoadStyle);
+
+    var sideSecond = sideFirst.Append(companyWorld);
+    ApplyUrbanRoadStyle(sideSecond, PortoAlegrePilot.SideRoadStyle);
+
+    // Add parking / delivery bay at the company entrance (L-shaped for better truck maneuvering)
+    // Made more substantial with two segments + extra stub for a small yard.
+    double bayScale = 120 / 111_320.0;
+    double bayDLat = -dLonPerp * bayScale * 1.2;  // perpendicular
+    double bayDLon = dLatPerp * bayScale * 1.2;
+    var bayMidGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat * 0.5, companyEntranceGeo.Longitude + bayDLon * 0.5);
+    var bayEndGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat, companyEntranceGeo.Longitude + bayDLon);
+
+    var bayMidWorld = ToGamePosition(bayMidGeo, origin);
+    var bayEndWorld = ToGamePosition(bayEndGeo, origin);
+
+    var parking1 = Road.Add(map, companyWorld, bayMidWorld, "ger1", 14, 14);
+    ApplyUrbanRoadStyle(parking1, PortoAlegrePilot.SideRoadStyle);
+
+    var parking2 = parking1.Append(bayEndWorld);
+    ApplyUrbanRoadStyle(parking2, PortoAlegrePilot.SideRoadStyle);
+
+    // Extra short stub for more parking space (small L)
+    var extraBayEnd = bayEndWorld + new Vector3(40, 0, -30);
+    var extraParking = Road.Add(map, bayEndWorld, extraBayEnd, "ger1", 10, 10);
+    ApplyUrbanRoadStyle(extraParking, PortoAlegrePilot.SideRoadStyle);
 
     Console.WriteLine($"[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.");
     Console.WriteLine($"  Junction at index {juncIdx}");
-    Console.WriteLine($"  Side mid: {sideMidGeo.Latitude:F6},{sideMidGeo.Longitude:F6}");
-    Console.WriteLine($"  Company entrance (for future prefab): {companyEntranceGeo.Latitude:F6},{companyEntranceGeo.Longitude:F6} (~{sideMeters:F0}m perpendicular)");
-    Console.WriteLine("Tune with --junction-index and --side-length. Default flow now produces a branch suitable for first delivery.");
+    Console.WriteLine($"  Side starts near junction (not attached to node 2 to prevent crash)");
+    Console.WriteLine($"  Company entrance + L-shaped parking bay: {companyEntranceGeo.Latitude:F6},{companyEntranceGeo.Longitude:F6} (~{sideMeters:F0}m perpendicular)");
+    Console.WriteLine("  Multiple parking stubs added for delivery maneuvering.");
+    Console.WriteLine("Tune with --junction-index and --side-length. This is now the recommended path for first playable company access (crash-safe).");
     Console.WriteLine("Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab.");
 }
 

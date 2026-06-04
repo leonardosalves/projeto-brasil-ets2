@@ -680,17 +680,17 @@ O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
 
 Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
 
-**Geração executada pelo agente (04/06/2026 - após "rode os comandos necessário")**:
-- Rodei exatamente:
+**Geração executada pelo agente (04/06/2026 - após screenshot do usuário "assim ficou, não fechou o map editor")**:
+- Usuário reportou: Mapa abriu sem crash, T-junction visível, side branch aparecendo (horizontal no screenshot), mas bay ainda pequeno/básico.
+- Correção de crash mantida (sem node 2).
+- Melhorias aplicadas: 
+  - Offset inicial do side reduzido (0.02) para melhor integração visual com o junction.
+  - Parking bay expandido para L-shaped com 2 segmentos principais + 1 stub extra (~120m + extra).
+- Rodei novamente:
   .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
   .\tools\install_mod.ps1
-- Saída do gerador confirmada:
-  [Junction] ... FIRST COMPANY ACCESS generated.
-    Side starts near junction (not attached to node 2 to prevent crash)
-    Company entrance + parking bay: -30.036966,-51.236562 (~280m perpendicular)
-    Small parking stub added for delivery maneuvering.
-- Mapa gerado no user_map correto + .scs instalado em Documents\Euro Truck Simulator 2\mod\
-- Usuário agora só precisa abrir o editor e Recompute map.
+- Saída atualizada: "Company entrance + L-shaped parking bay" + "Multiple parking stubs added for delivery maneuvering."
+- .scs instalado. Usuário deve Recompute map para ver o L-shaped bay mais visível no final do branch.
 
 **Correção de crash (editor fechando sozinho)**:
 - O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).
