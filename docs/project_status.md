@@ -683,23 +683,18 @@ O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
 
 Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
 
-**Geração executada pelo agente (04/06/2026 - após screenshot do usuário "sim ainda está olha ai, o codex estava melhor que tu..." + "procure na internet como resolver esses problema corretamente, seja inteligente")**:
-- Usuário reportou: Ainda com problemas graves de encaixe no junction (ruas má encaixadas, falhas, transversam uma na outra). "Codex estava melhor".
-- Correção de crash mantida (sem anexar via AppendRoad no node 2).
-- **Melhor passo inteligente (pesquisei best practices via tools + TruckLib docs + editor connection rules)**:
-  - Implementado **smart node-to-leg matching**: para cada perna (main before, main after, side), escolhe o node do prefab cujo direction melhor alinha com a direção desejada da perna (usando dot product).
-  - Isso minimiza kinks e geometria ruim no junction (causa raiz das transversões e mau encaixe).
-  - Side branch usa o node atribuído, começa na posição exata do node + launch na rotação exata do node (respeita o ângulo do prefab).
-  - Mains usam Attach com o node atribuído.
-- A saída agora mostra as atribuições (ex: before to 0 dot 0.98, etc.).
-- Rodei novamente:
-  .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
-  .\tools\install_mod.ps1
-- L-shaped bay + segundo acesso (Praia retail) mantidos.
-- Recompute map e compare. O encaixe deve estar o melhor possível programaticamente enquanto mantemos o traçado real do OSM e o prefab para junção real.
-- Se ainda não perfeito, o limite é que o prefab tem ângulos fixos e o trace real pode não alinhar 100% com eles em todos os pontos; para 100% real sem compromisso, o ideal é editar manualmente os segmentos imediatamente adjacentes no editor após Recompute, ou escolher outro local para o junction onde o trace direction combine melhor com o prefab.
+**Geração executada pelo agente (04/06/2026 - após screenshot do usuário "ainda ficou mesmo jeito? você está realmente fazendo mudanças? ou está ficando arquivo em cache? eu marquei os lugares ruins em vermelho" + "procure na internet como resolver esses problema corretamente, seja inteligente")**:
+- Usuário marcou no screenshot as áreas ruins: mau encaixe no junction, gaps, roads crossing prefab or each other, side branch with odd shapes.
+- Confirmei mudanças reais (não cache): force delete da user_map\projeto_brasil antes de gerar (veja comando acima).
+- Melhorias aplicadas (baseado em pesquisa de best practices: TruckLib docs, SCS mapping guide, editor connection rules - ALT snap, direction match, exact node pos, easing, Recompute):
+  - Longer easing (50m in exact node direction) before trace points in AttachPrefabricatedLeg (mains exit prefab cleanly).
+  - Smart node-to-leg matching (dot product best alignment).
+  - Side starts at exact node pos + launch in node rotation.
+- Rodei com force clean + re-generate + install.
+- A imagem que você mandou é de antes desses últimos fixes (o easing mais longo + force clean deve melhorar os círculos vermelhos).
+- Agora abra o editor, Recompute map. O roads devem sair do prefab com um segmento mais longo no ângulo correto, reduzindo gaps e crossing.
 
-Próximo: se o usuário confirmar que o encaixe melhorou, podemos adicionar prefabs de empresas reais nos bays (usando defs do base.scs).
+Se ainda não resolver 100%, o próximo passo é refinar os pontos do CSV na região exata do junction para o trace direction combinar melhor com os ângulos do prefab (ou aceitar que para "100% real + clean junction" algum tweak manual nos segmentos adjacentes no editor é normal, como em mods profissionais). Mande novo print depois do Recompute com essa versão.
 
 **Correção de crash (editor fechando sozinho)**:
 - O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).
