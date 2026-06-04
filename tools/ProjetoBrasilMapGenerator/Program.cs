@@ -403,6 +403,34 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     Console.WriteLine($"  Side starts near junction (not attached to node 2 to prevent crash)");
     Console.WriteLine($"  Company entrance + L-shaped parking bay: {companyEntranceGeo.Latitude:F6},{companyEntranceGeo.Longitude:F6} (~{sideMeters:F0}m perpendicular)");
     Console.WriteLine("  Multiple parking stubs added for delivery maneuvering.");
+
+    // Additional company access (example: near Praia de Belas for retail delivery)
+    // Focus on major delivery points as requested.
+    if (points.Count > 15)
+    {
+        var c2Idx = 15; // adjust as needed for real location
+        var c2Geo = points[c2Idx];
+        var c2Pos = ToGamePosition(c2Geo, origin);
+
+        // Small perpendicular side for company (using similar logic, simplified)
+        // Direction roughly perpendicular (tune sign for side)
+        var c2SideMid = c2Pos + new Vector3(-60, 0, 20);
+        var c2Company = c2Pos + new Vector3(-120, 0, 40);
+
+        var c2First = Road.Add(map, c2Pos, c2SideMid, "ger1", 10, 10);
+        ApplyUrbanRoadStyle(c2First, PortoAlegrePilot.SideRoadStyle);
+
+        var c2Second = c2First.Append(c2Company);
+        ApplyUrbanRoadStyle(c2Second, PortoAlegrePilot.SideRoadStyle);
+
+        // Small bay for this company too
+        var c2Bay = c2Company + new Vector3(30, 0, 50);
+        var c2BayRoad = Road.Add(map, c2Company, c2Bay, "ger1", 10, 10);
+        ApplyUrbanRoadStyle(c2BayRoad, PortoAlegrePilot.SideRoadStyle);
+
+        Console.WriteLine($"  Additional company access added near trace index {c2Idx} (Praia area retail).");
+    }
+
     Console.WriteLine("Tune with --junction-index and --side-length. This is now the recommended path for first playable company access (crash-safe).");
     Console.WriteLine("Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab.");
 }

@@ -615,8 +615,11 @@ Se o mapa fechar sozinho no load:
 ```
 
 **O que o mapa contém agora (após Recompute no editor):**
-- Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace.
-- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~100m+, perpendicular ao approach) para manobra de caminhão. Nome: Orla Eventos (primeira entrega).
+- Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace (baseado em pontos OSM reais).
+- **Dois acessos a empresas maiores** (foco em pontos com entrega de mercadorias):
+  - Primeiro: Orla (índice 5) com L-shaped parking bay + stubs (~120m+).
+  - Segundo: área Praia (índice ~15) com side + bay simples.
+- Trajetos das pernas principais seguem o trace real do CSV (refinado com pontos adicionais para melhor fidelidade).
 - Sem duplicação de pontos de fechamento de loop.
 - Limpeza automática de autosave / .bak / user_map feita pelo script.
 
@@ -636,10 +639,10 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 **Para validar:**
 - Abra com `-edit projeto_brasil -noworkshop`
 - `Map > Recompute map` (essencial!)
-- Se não vir o branch: rode com as flags --with-junction (veja seção Troubleshooting abaixo).
-- O T + branch lateral + parking bay (agora ~100m+) devem estar visíveis saindo do junction.
-- O bay é o espaço para a primeira entrega (caminhão pode manobrar ali).
-- Use o console do gerador para ver exatamente para onde cada node está apontando.
+- O T-junction (índice 5) + dois acessos laterais (Orla com L-bay + Praia retail) devem aparecer.
+- Os trajetos principais seguem o trace OSM real (com pontos refinados).
+- Use o console para ver os logs de company accesses.
+- Lembrete do usuário: trajetos 100% reais + foco em grandes pontos de entrega.
 
 **Rollback rápido para traçado contínuo (sem nenhum prefab):**
 ```powershell
@@ -681,16 +684,21 @@ O bay foi aumentado para ~100m+ na última iteração para ficar mais visível.
 Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos.
 
 **Geração executada pelo agente (04/06/2026 - após screenshot do usuário "assim ficou, não fechou o map editor")**:
-- Usuário reportou: Mapa abriu sem crash, T-junction visível, side branch aparecendo (horizontal no screenshot), mas bay ainda pequeno/básico.
+- Usuário reportou: Mapa abriu sem crash, T-junction visível (com estrutura complexa no screenshot), side branch aparecendo (horizontal), bay ainda básico no print.
 - Correção de crash mantida (sem node 2).
-- Melhorias aplicadas: 
-  - Offset inicial do side reduzido (0.02) para melhor integração visual com o junction.
-  - Parking bay expandido para L-shaped com 2 segmentos principais + 1 stub extra (~120m + extra).
+- Melhorias aplicadas nesta iteração:
+  - Offset inicial do side reduzido para melhor integração visual.
+  - Parking bay expandido para L-shaped com múltiplos stubs.
+  - Adicionado **segundo acesso a empresa** (exemplo Praia area retail/delivery) em índice ~15 do trace, com side + bay.
 - Rodei novamente:
   .\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
   .\tools\install_mod.ps1
-- Saída atualizada: "Company entrance + L-shaped parking bay" + "Multiple parking stubs added for delivery maneuvering."
-- .scs instalado. Usuário deve Recompute map para ver o L-shaped bay mais visível no final do branch.
+- Agora o mapa tem:
+  - T-junction real no trace (índice 5).
+  - Primeiro acesso Orla com L-bay.
+  - Segundo acesso Praia retail.
+- Foco em trajetos baseados em trace OSM real + acessos para maiores pontos de entrega de mercadorias (conforme pedido).
+- .scs instalado. Recompute map para ver os L-bays e os dois acessos.
 
 **Correção de crash (editor fechando sozinho)**:
 - O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).
@@ -698,7 +706,7 @@ Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos
 - A side branch agora é criada como road normal começando bem próximo do junction (offset pequeno), mantendo o visual de ramificação perpendicular + parking bay.
 - Isso deve resolver o fechamento do editor. Se ainda crashar, podemos remover completamente o prefab ou testar node assignment diferente.
 
-**Próxima ação esperada do usuário:** Abra com `-edit projeto_brasil -noworkshop`, rode `Map > Recompute map`, procure o T-junction (índice 5, início da Orla) + branch lateral + parking bay no final. Mande novo print. Próximos: colocar empresa real (prefab) no bay.
+**Próxima ação esperada do usuário:** Abra com `-edit projeto_brasil -noworkshop`, rode `Map > Recompute map`, verifique os dois acessos a empresas (Orla L-bay e Praia). Mande print do trecho da imagem anterior para comparação. Próximos: adicionar prefabs de empresas reais nos bays ou refinar ainda mais pontos do CSV para 100% fidelidade real.
 
 ## Infraestrutura - Repositório GitHub
 
