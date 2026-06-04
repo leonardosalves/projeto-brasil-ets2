@@ -511,16 +511,17 @@ O que foi feito:
   - Arquivos .mbd + setores produzidos (prefab + roads anexados aparecem nos dados).
   - Setores similares ao trace anterior (4 quadrantes).
 
-- **Melhoria na side branch (continuação após "OK PODE CONTINUAR O PROJETO" - MELHOR PASSO ATUAL)**:
-  - Refatorado o cálculo do side target para usar vetor perpendicular real (cross product style: sideEast = -north, sideNorth = east) a partir do mesmo bearing usado no yaw do prefab.
-  - Agora o acesso lateral sai naturalmente ~90° da via principal, com comprimento em metros controlado por --side-length.
-  - **Grande evolução**: o side branch agora tem **dois pontos** (mid + final company entrance). Isso cria uma pequena estrada de acesso real saindo do T-junction, pronta para se transformar na primeira empresa (ex: Orla Eventos ou POA Mercado Logistica).
-  - Exemplo de saída: 
-    Side mid: -30.036912,-51.238492
-    Company entrance (for future prefab): -30.036966,-51.236562 (~280m perpendicular)
-  - Isso é o **melhor passo possível atual**: transforma o experimental junction em algo jogável (corredor principal + primeiro acesso lateral para entrega).
-  - Rebuild, teste de geração e push realizados.
-  - Atualização no fluxo recomendado: use `--with-junction` para ter o primeiro acesso a empresa.
+- **Melhoria na side branch (continuação após "PODE PROSSEGUIR")**:
+  - Adicionado **small parking / delivery bay stub** no final do acesso à empresa (perpendicular short road de ~50-60m para manobra de caminhão).
+  - Isso transforma o side branch em um **acesso funcional à primeira empresa** (com espaço para estacionar/entrega), não só uma estrada cega.
+  - Nomeado internamente como "FIRST COMPANY ACCESS" (ex: Orla Eventos).
+  - Exemplo de saída atual:
+    [Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.
+      Company entrance + parking bay: -30.036966,-51.236562 (~280m perpendicular)
+      Small parking stub added for delivery maneuvering.
+  - Este é um passo de alto valor: o mapa agora tem um corredor principal + junção real + primeiro ponto de entrega com área de manobra.
+  - Rebuild, geração de teste e push realizados.
+  - Fluxo recomendado: `--with-junction --side-length 280` para ter o acesso completo com bay.
 
 Arquivos principais alterados:
 
@@ -615,17 +616,19 @@ Se o mapa fechar sozinho no load:
 
 **O que o mapa contém agora (após Recompute no editor):**
 - Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace.
-- **Primeiro acesso a empresa**: side branch perpendicular com 2 pontos (mid + company entrance ~280m off the junction). Pronto para se tornar a primeira entrega (ex: Orla Eventos).
+- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~50-60m) para manobra. Nome: Orla Eventos (primeira entrega).
 - Sem duplicação de pontos de fechamento de loop.
 - Limpeza automática de autosave / .bak / user_map feita pelo script.
 
-**Exemplo de saída do gerador (com as flags atuais):**
+**Exemplo de saída do gerador (com as flags atuais - primeiro acesso com bay):**
 ```
 [Junction] Placing prefab 56 (road1_x_road1_t) at trace index 5 ~ -30.036830, -51.241386 (use --junction-index to change)
     node0: pos=(-250.2, -66.0)  dir≈(-0.03, -1.00)
     node1: pos=(-231.6, -48.6)  dir≈(1.00, -0.03)
     node2: pos=(-267.6, -47.4)  dir≈(-1.00, 0.03)
-[Junction] Real trace split + T-junction prefab + side branch generated (side target near -30.034630,-51.242364).
+[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.
+  Company entrance + parking bay: -30.036966,-51.236562 (~280m perpendicular)
+  Small parking stub added for delivery maneuvering.
 Generated projeto_brasil into: ...
 Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 ```
@@ -633,7 +636,8 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 **Para validar:**
 - Abra com `-edit projeto_brasil -noworkshop`
 - `Map > Recompute map`
-- Compare com o screenshot U-shape anterior: o T + branch lateral agora deve ser mais evidente graças à rotação do prefab.
+- Compare com o screenshot U-shape anterior: o T + branch lateral + parking bay no final devem estar visíveis.
+- O bay é o espaço para a primeira entrega (caminhão pode manobrar ali).
 - Use o console do gerador para ver exatamente para onde cada node está apontando.
 
 **Rollback rápido para traçado contínuo (sem nenhum prefab):**
@@ -646,7 +650,7 @@ Mode: real trace split across T-junction (prefab 56) + oriented side branch.
 - `dist/projeto_brasil_1_4_map.scs`
 - Instalado normalmente em `Documents\Euro Truck Simulator 2\mod\`
 
-**Próxima ação esperada do usuário:** Rodar a geração com as flags acima, abrir no editor, fazer Recompute, e enviar novo screenshot + feedback (ex: "o branch está apontando para dentro da U, bom" ou "mude o índice para 7" ou "o side ainda precisa de mais comprimento").
+**Próxima ação esperada do usuário:** Rodar a geração com as flags acima (agora com parking bay), abrir no editor, fazer Recompute, e enviar novo screenshot + feedback. O bay deve permitir que o caminhão "estacione" para entrega. Próximos: adicionar prefab de empresa real no bay ou refinar pontos do CSV para melhor forma do U.
 
 ## Infraestrutura - Repositório GitHub
 
