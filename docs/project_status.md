@@ -512,7 +512,7 @@ O que foi feito:
   - Setores similares ao trace anterior (4 quadrantes).
 
 - **Melhoria na side branch (continuação após "PODE PROSSEGUIR")**:
-  - Adicionado **small parking / delivery bay stub** no final do acesso à empresa (perpendicular short road de ~50-60m para manobra de caminhão).
+  - Adicionado **small parking / delivery bay stub** no final do acesso à empresa (perpendicular short road de ~50-60m para manobra de caminhão), calculado dinamicamente perpendicular ao side approach.
   - Isso transforma o side branch em um **acesso funcional à primeira empresa** (com espaço para estacionar/entrega), não só uma estrada cega.
   - Nomeado internamente como "FIRST COMPANY ACCESS" (ex: Orla Eventos).
   - Exemplo de saída atual:
@@ -525,7 +525,7 @@ O que foi feito:
 
 Arquivos principais alterados:
 
-- `tools/ProjetoBrasilMapGenerator/Program.cs` (cálculo de yaw do prefab a partir do bearing do trace, parsing de --junction-index/--side-length, impressão de direções dos nodes 0/1/2, side branch com target geo escalável + perpendicular real a partir do vetor local, stub+continuação pattern, limpeza de código não usado)
+- `tools/ProjetoBrasilMapGenerator/Program.cs` (cálculo de yaw do prefab a partir do bearing do trace, parsing de --junction-index/--side-length, impressão de direções dos nodes 0/1/2, side branch com target geo escalável + perpendicular real + parking bay stub no final para manobra de entrega, stub+continuação pattern, limpeza de código não usado)
 - `tools/generate_map.ps1` (documentação das novas flags de tuning)
 - `data/zone01a_real_trace.csv` (nota sobre índice de junção)
 
@@ -616,7 +616,7 @@ Se o mapa fechar sozinho no load:
 
 **O que o mapa contém agora (após Recompute no editor):**
 - Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace.
-- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~50-60m) para manobra. Nome: Orla Eventos (primeira entrega).
+- **Primeiro acesso funcional a empresa**: side branch perpendicular com 2 pontos (mid + company entrance) + small parking/delivery bay stub (~50-60m, perpendicular ao approach) para manobra de caminhão. Nome: Orla Eventos (primeira entrega).
 - Sem duplicação de pontos de fechamento de loop.
 - Limpeza automática de autosave / .bak / user_map feita pelo script.
 
