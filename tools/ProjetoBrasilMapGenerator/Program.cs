@@ -366,17 +366,31 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
 
     // Create the side branch as normal roads (not attached via prefab.AppendRoad to avoid node 2 crash)
-    // Start exactly from the prefab node 2 position for better visual connection/encaixe at the junction.
+    // Start exactly from the prefab node 2 position + launch in the node's exact rotation direction.
+    // This respects the prefab's designed connection angle for clean encaixe (no misalignment or crossing).
     var sideNode = prefab.Nodes[2];
-    var sideStartWorld = sideNode.Position;  // exact prefab node position
+    var direction = Vector3.Transform(new Vector3(0, 0, 1), sideNode.Rotation);
+    direction.Y = 0;
+    if (float.IsNaN(direction.X) || float.IsNaN(direction.Z) || direction.LengthSquared() < 0.1f)
+    {
+        direction = new Vector3(0, 0, -1); // fallback, adjust if needed for your node2
+    }
+    direction = Vector3.Normalize(direction);
+
+    var sideStartWorld = sideNode.Position;
+    var launchTarget = sideNode.Position + direction * 25f; // short launch in correct prefab angle
+
     var sideMidWorld = ToGamePosition(sideMidGeo, origin);
     var companyWorld = ToGamePosition(companyEntranceGeo, origin);
 
-    var sideFirst = Road.Add(map, sideStartWorld, sideMidWorld, "ger1", 10, 10);
+    var sideFirst = Road.Add(map, sideStartWorld, launchTarget, "ger1", 10, 10);
     ApplyUrbanRoadStyle(sideFirst, PortoAlegrePilot.SideRoadStyle);
 
-    var sideSecond = sideFirst.Append(companyWorld);
+    var sideSecond = sideFirst.Append(sideMidWorld);
     ApplyUrbanRoadStyle(sideSecond, PortoAlegrePilot.SideRoadStyle);
+
+    var sideThird = sideSecond.Append(companyWorld);
+    ApplyUrbanRoadStyle(sideThird, PortoAlegrePilot.SideRoadStyle);
 
     // Add parking / delivery bay at the company entrance (L-shaped for better truck maneuvering)
     // Made more substantial with two segments + extra stub for a small yard.
