@@ -511,9 +511,16 @@ O que foi feito:
   - Arquivos .mbd + setores produzidos (prefab + roads anexados aparecem nos dados).
   - Setores similares ao trace anterior (4 quadrantes).
 
+- **Melhoria na side branch (continuação após "OK PODE CONTINUAR O PROJETO")**:
+  - Refatorado o cálculo do side target para usar vetor perpendicular real (cross product style: sideEast = -north, sideNorth = east) a partir do mesmo bearing usado no yaw do prefab.
+  - Agora o acesso lateral sai naturalmente ~90° da via principal, com comprimento em metros controlado por --side-length.
+  - Exemplo de saída atualizada: side target near -30.036966,-51.236562, length~250m perpendicular.
+  - Isso deve resolver o problema de o branch não aparecer claramente no screenshot U-shape anterior.
+  - Rebuild e teste de geração realizados com sucesso.
+
 Arquivos principais alterados:
 
-- `tools/ProjetoBrasilMapGenerator/Program.cs` (cálculo de yaw do prefab a partir do bearing do trace, parsing de --junction-index/--side-length, impressão de direções dos nodes 0/1/2, side branch com target geo escalável, stub+continuação pattern, limpeza de código não usado)
+- `tools/ProjetoBrasilMapGenerator/Program.cs` (cálculo de yaw do prefab a partir do bearing do trace, parsing de --junction-index/--side-length, impressão de direções dos nodes 0/1/2, side branch com target geo escalável + perpendicular real a partir do vetor local, stub+continuação pattern, limpeza de código não usado)
 - `tools/generate_map.ps1` (documentação das novas flags de tuning)
 - `data/zone01a_real_trace.csv` (nota sobre índice de junção)
 

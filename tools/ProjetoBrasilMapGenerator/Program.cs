@@ -290,7 +290,10 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     // Compute approximate avenue direction (bearing) at the junction point from the trace.
     // This lets us orient the whole prefab so the "through" roughly follows the real road,
     // making the third arm (side) stick out more visibly as a T-branch instead of continuing straight.
+    // We also use the same vector to compute a true perpendicular for the side branch.
     float prefabYaw = 0f;
+    double east = 0;
+    double north = 0;
     if (juncIdx > 0 && juncIdx + 1 < points.Count)
     {
         var pPrev = points[juncIdx - 1];
@@ -299,8 +302,8 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
         double dLon = pNext.Longitude - pPrev.Longitude;
         const double metersPerDegLat = 111_320.0;
         double metersPerDegLon = metersPerDegLat * Math.Cos(pPrev.Latitude * Math.PI / 180.0);
-        double east = dLon * metersPerDegLon;
-        double north = dLat * metersPerDegLat;
+        east = dLon * metersPerDegLon;
+        north = dLat * metersPerDegLat;
         // Game: +X = east, +Z = -north (see ToGamePosition). Atan2(east, north) gives a reasonable yaw; sign may need visual tweak.
         prefabYaw = (float)Math.Atan2(east, north);
     }
@@ -339,15 +342,20 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     AttachPrefabricatedLeg(map, prefab, 1, afterWorld, PortoAlegrePilot.MainRoadStyle);
     AttachPrefabricatedLeg(map, prefab, 0, beforeWorld, PortoAlegrePilot.MainRoadStyle);
 
-    // Side access: create a short leg toward a plausible first company / delivery spot slightly "inland" from the junction.
-    // Using a target point + the stub+continuation pattern so it branches off the main U.
-    // Tune with --side-length M (scales the offset). With the prefab now oriented to the avenue, the third arm should be more perpendicular.
-    double sideScale = sideLength / 180.0;
-    var sideTargetGeo = new GeoPoint(juncGeo.Latitude + 0.0018 * sideScale, juncGeo.Longitude - 0.0008 * sideScale);
+    // Side access: compute a proper perpendicular direction from the local trace bearing.
+    // This makes the side branch go off the main road at ~90 degrees (T-junction style) instead of arbitrary hardcoded deltas.
+    // Length is controlled by --side-length (in meters, roughly).
+    double sideEast = -north;   // perpendicular to main direction
+    double sideNorth = east;
+    double sideMeters = sideLength;
+    double dLatSide = sideNorth / 111_320.0;
+    double dLonSide = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
+    var sideTargetGeo = new GeoPoint(juncGeo.Latitude + dLatSide, juncGeo.Longitude + dLonSide);
+
     var sideWorld = new[] { ToGamePosition(sideTargetGeo, origin) };
     AttachPrefabricatedLeg(map, prefab, 2, sideWorld, PortoAlegrePilot.SideRoadStyle);
 
-    Console.WriteLine($"[Junction] Real trace split + T-junction prefab + side branch generated (side target near {sideTargetGeo.Latitude:F6},{sideTargetGeo.Longitude:F6}).");
+    Console.WriteLine($"[Junction] Real trace split + T-junction prefab + side branch generated (side target near {sideTargetGeo.Latitude:F6},{sideTargetGeo.Longitude:F6}, length~{sideMeters:F0}m perpendicular).");
     Console.WriteLine("Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab. Tune with --junction-index and --side-length.");
 }
 
