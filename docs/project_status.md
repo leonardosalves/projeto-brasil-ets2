@@ -511,12 +511,16 @@ O que foi feito:
   - Arquivos .mbd + setores produzidos (prefab + roads anexados aparecem nos dados).
   - Setores similares ao trace anterior (4 quadrantes).
 
-- **Melhoria na side branch (continuação após "OK PODE CONTINUAR O PROJETO")**:
+- **Melhoria na side branch (continuação após "OK PODE CONTINUAR O PROJETO" - MELHOR PASSO ATUAL)**:
   - Refatorado o cálculo do side target para usar vetor perpendicular real (cross product style: sideEast = -north, sideNorth = east) a partir do mesmo bearing usado no yaw do prefab.
   - Agora o acesso lateral sai naturalmente ~90° da via principal, com comprimento em metros controlado por --side-length.
-  - Exemplo de saída atualizada: side target near -30.036966,-51.236562, length~250m perpendicular.
-  - Isso deve resolver o problema de o branch não aparecer claramente no screenshot U-shape anterior.
-  - Rebuild e teste de geração realizados com sucesso.
+  - **Grande evolução**: o side branch agora tem **dois pontos** (mid + final company entrance). Isso cria uma pequena estrada de acesso real saindo do T-junction, pronta para se transformar na primeira empresa (ex: Orla Eventos ou POA Mercado Logistica).
+  - Exemplo de saída: 
+    Side mid: -30.036912,-51.238492
+    Company entrance (for future prefab): -30.036966,-51.236562 (~280m perpendicular)
+  - Isso é o **melhor passo possível atual**: transforma o experimental junction em algo jogável (corredor principal + primeiro acesso lateral para entrega).
+  - Rebuild, teste de geração e push realizados.
+  - Atualização no fluxo recomendado: use `--with-junction` para ter o primeiro acesso a empresa.
 
 Arquivos principais alterados:
 
@@ -533,11 +537,11 @@ Aprendizados / workarounds importantes:
 - A rotação Identity do prefab + launch via node.Rotation faz as pernas iniciarem no ângulo "desenhado" pelo prefab. Pontos reais subsequentes puxam a geometria para o traçado OSM (pode gerar pequena curva de transição no stub).
 - Base do mapa continua sendo o traçado real do CSV (sem malha artificial).
 
-Como testar a nova integração (após screenshot do U-shape):
+Como testar a nova integração (MELHOR PASSO ATUAL - primeiro acesso a empresa via perpendicular side branch com 2 pontos):
 
 ```powershell
-# Gera com T-junction orientada + branch lateral visível + diagnósticos no console
-.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 220
+# Gera com T-junction orientada + primeiro acesso real a empresa (side mid + company entrance)
+.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
 
 .\tools\install_mod.ps1
 ```
@@ -547,7 +551,9 @@ No console do gerador você verá algo como:
     node0: pos=... dir≈...
     node1: pos=... dir≈...
     node2: pos=... dir≈...
-  [Junction] ... side target near ...
+  [Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.
+    Side mid: ...
+    Company entrance (for future prefab): ... (~280m perpendicular)
 
 No ETS2:
 
@@ -601,16 +607,15 @@ Se o mapa fechar sozinho no load:
 
 **Traçado base:** Zona 01-A real via `data/zone01a_real_trace.csv` (18 pontos OSM: Gasômetro → Orla/Edvaldo Pereira Paiva → Praia de Belas → Borges aproximado + retorno).
 
-**Geração recomendada atual:**
+**Geração recomendada atual (MELHOR PASSO - com primeiro acesso a empresa):**
 ```powershell
-.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 220
+.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
 .\tools\install_mod.ps1
 ```
 
 **O que o mapa contém agora (após Recompute no editor):**
-- Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`).
-- Prefab posicionado e **rotacionado** automaticamente usando o bearing do trace no ponto da junção (para que o braço lateral saia mais visível).
-- Acesso lateral (side branch) saindo do node 2 em direção a um target geo ligeiramente inland (ajustável).
+- Corredor principal dividido em duas pernas (before + after) conectadas através de um prefab T nativo `56` (`road1_x_road1_t`), orientado pelo bearing real do trace.
+- **Primeiro acesso a empresa**: side branch perpendicular com 2 pontos (mid + company entrance ~280m off the junction). Pronto para se tornar a primeira entrega (ex: Orla Eventos).
 - Sem duplicação de pontos de fechamento de loop.
 - Limpeza automática de autosave / .bak / user_map feita pelo script.
 

@@ -342,21 +342,35 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     AttachPrefabricatedLeg(map, prefab, 1, afterWorld, PortoAlegrePilot.MainRoadStyle);
     AttachPrefabricatedLeg(map, prefab, 0, beforeWorld, PortoAlegrePilot.MainRoadStyle);
 
-    // Side access: compute a proper perpendicular direction from the local trace bearing.
-    // This makes the side branch go off the main road at ~90 degrees (T-junction style) instead of arbitrary hardcoded deltas.
-    // Length is controlled by --side-length (in meters, roughly).
-    double sideEast = -north;   // perpendicular to main direction
+    // Side access: first real company access (Orla Eventos / similar).
+    // Compute perpendicular from local trace bearing for natural T-branch.
+    // Then add a second point further along for a short delivery access road.
+    // This is the first step toward a playable loop with deliveries.
+    double sideEast = -north;   // perpendicular
     double sideNorth = east;
     double sideMeters = sideLength;
-    double dLatSide = sideNorth / 111_320.0;
-    double dLonSide = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
-    var sideTargetGeo = new GeoPoint(juncGeo.Latitude + dLatSide, juncGeo.Longitude + dLonSide);
 
-    var sideWorld = new[] { ToGamePosition(sideTargetGeo, origin) };
+    double dLatPerp = sideNorth / 111_320.0;
+    double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
+
+    // Intermediate point (junction to company road start)
+    var sideMidGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.6, juncGeo.Longitude + dLonPerp * 0.6);
+
+    // Final company entrance point (further, can be used later for company prefab/parking)
+    var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
+
+    var sideWorld = new[] {
+        ToGamePosition(sideMidGeo, origin),
+        ToGamePosition(companyEntranceGeo, origin)
+    };
     AttachPrefabricatedLeg(map, prefab, 2, sideWorld, PortoAlegrePilot.SideRoadStyle);
 
-    Console.WriteLine($"[Junction] Real trace split + T-junction prefab + side branch generated (side target near {sideTargetGeo.Latitude:F6},{sideTargetGeo.Longitude:F6}, length~{sideMeters:F0}m perpendicular).");
-    Console.WriteLine("Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab. Tune with --junction-index and --side-length.");
+    Console.WriteLine($"[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.");
+    Console.WriteLine($"  Junction at index {juncIdx}");
+    Console.WriteLine($"  Side mid: {sideMidGeo.Latitude:F6},{sideMidGeo.Longitude:F6}");
+    Console.WriteLine($"  Company entrance (for future prefab): {companyEntranceGeo.Latitude:F6},{companyEntranceGeo.Longitude:F6} (~{sideMeters:F0}m perpendicular)");
+    Console.WriteLine("Tune with --junction-index and --side-length. Default flow now produces a branch suitable for first delivery.");
+    Console.WriteLine("Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab.");
 }
 
 static void AttachPrefabricatedLeg(Map map, Prefab prefab, ushort nodeIndex, Vector3[] worldPoints, RoadBlueprint style)
