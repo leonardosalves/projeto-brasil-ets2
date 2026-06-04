@@ -665,7 +665,12 @@ Passos para ver o junction + side + parking bay:
 6. Do nó do prefab deve sair o branch lateral perpendicular (com seus próprios pontos vermelhos).
 7. No final do branch, procure o parking bay (stub curto saindo para o lado, agora com ~100m+ para melhor visibilidade e manobra).
 
-Se ainda não aparecer:
+Se o editor fechar sozinho ao abrir:
+- Causa: anexar a side branch ao node 2 do prefab (node 2 causa crash consistentemente, conforme vários testes nos Prefab Labs).
+- Correção já aplicada: a side branch agora é criada como road normal (começa bem próximo do junction, sem usar node 2).
+- O agente já re-rodou a geração com a correção.
+
+Se ainda não aparecer o branch/bay:
 - Tente --side-length 400 (bay maior).
 - Mude o índice: --junction-index 4 ou 6 ou 7 (testar um por um).
 - No editor, use a ferramenta de seleção de itens ou "Map > Recompute map" de novo.
@@ -681,11 +686,17 @@ Envie novo screenshot depois de rodar com as flags + Recompute para confirmarmos
   .\tools\install_mod.ps1
 - Saída do gerador confirmada:
   [Junction] ... FIRST COMPANY ACCESS generated.
-    Side mid: -30.036912,-51.238492
+    Side starts near junction (not attached to node 2 to prevent crash)
     Company entrance + parking bay: -30.036966,-51.236562 (~280m perpendicular)
     Small parking stub added for delivery maneuvering.
 - Mapa gerado no user_map correto + .scs instalado em Documents\Euro Truck Simulator 2\mod\
 - Usuário agora só precisa abrir o editor e Recompute map.
+
+**Correção de crash (editor fechando sozinho)**:
+- O problema era a anexação da side branch ao node 2 do prefab (histórico de crashes nos labs).
+- Removido o AttachPrefabricatedLeg para node 2.
+- A side branch agora é criada como road normal começando bem próximo do junction (offset pequeno), mantendo o visual de ramificação perpendicular + parking bay.
+- Isso deve resolver o fechamento do editor. Se ainda crashar, podemos remover completamente o prefab ou testar node assignment diferente.
 
 **Próxima ação esperada do usuário:** Abra com `-edit projeto_brasil -noworkshop`, rode `Map > Recompute map`, procure o T-junction (índice 5, início da Orla) + branch lateral + parking bay no final. Mande novo print. Próximos: colocar empresa real (prefab) no bay.
 
