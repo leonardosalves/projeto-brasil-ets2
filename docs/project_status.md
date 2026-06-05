@@ -916,50 +916,16 @@ Atualizei status + commit + push (incluindo dados de mapa sincronizados).
 - `.gitignore` robusto (exclui extracted_game, builds, .dotnet, *.scs, logs, temp etc.).
 - Remote HTTPS configurado.
 
-**Push inicial (04/06/2026):**
-Tentativa `git push -u origin master` retornou **403 Permission denied**.
+**Pushes:** funcionando normalmente via HTTPS (PAT com Contents: Read and write). Todo trabalho relevante termina com atualização de `docs/project_status.md` + `git add/commit/push` (código + status + setores sincronizados do generate).
 
-Causa: O fine-grained PAT atual (`github_pat_...`) usado pelo `gh` / git credential manager **não tem permissão de escrita** no repositório (Contents: Write).
-
-**Ações realizadas:**
-- Remote limpo e re-adicionado corretamente.
-- `gh auth refresh` iniciado (pediu device code, mas escopo fino-grained precisa ser ajustado manualmente no site).
-
-**Como resolver (faça isso para conseguir dar push):**
-
-Opção 1 (recomendada para PAT fino-grained):
-1. Acesse https://github.com/settings/tokens
-2. Edite o PAT atual (aquele que aparece no `gh auth status`).
-3. Em "Repository permissions":
-   - **Contents** → Read and write
-   - (Opcional) Metadata → Read (já costuma estar)
-4. Salve / gere novo token se necessário.
-5. No terminal rode:
-   ```powershell
-   gh auth login   # ou gh auth refresh -h github.com -s repo
-   ```
-6. Depois:
-   ```powershell
-   git push -u origin master
-   ```
-
-Opção 2 (rápida):
-Mude para SSH (se você já tem chave SSH cadastrada no GitHub):
+**Workflow obrigatório:**
 ```powershell
-git remote set-url origin git@github.com:leonardosalves/projeto-brasil-ets2.git
-git push -u origin master
-```
-
-**Workflow "sempre upe as mudanças" (a partir de agora):**
-Após qualquer alteração relevante (código, docs, status etc.):
-```powershell
-git add .
-git commit -m "descrição clara do que foi feito"
+git add tools/ProjetoBrasilMapGenerator/Program.cs docs/project_status.md   # ou os arquivos mudados
+git commit -m "Fase X: descrição do que foi feito (sempre ref ao usuário/feedback)"
 git push
 ```
-E **sempre** atualize `docs/project_status.md` primeiro (conforme instrução anterior).
 
-O estado atual do projeto (incluindo Fase 12 + melhorias de orientação do T-junction) está versionado localmente e será enviado assim que a permissão for corrigida.
+(Seção antiga de 403 removida — problema resolvido.)
 
 ## Regras para atualizacao deste arquivo
 
