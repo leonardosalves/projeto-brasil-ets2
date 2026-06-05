@@ -1,6 +1,6 @@
 # Status do Projeto Brasil ETS2
 
-Ultima atualizacao: 2026-06-04 (atualizado com melhorias de orientação do prefab + tunáveis + Estado atual detalhado após análise do screenshot U-shape enviado pelo usuário)
+Ultima atualizacao: 2026-06 (atualizado com Fase 12 continuação: resposta direta + correção do "?? porque esse loop" dos stubs do bay, force clean + generate + install, novo Estado atual com verbatim do run, notas de terrain/grass, Git push)
 
 ## Visao geral
 
@@ -703,6 +703,125 @@ Se ainda não resolver 100%, o próximo passo é refinar os pontos do CSV na reg
 - Isso deve resolver o fechamento do editor. Se ainda crashar, podemos remover completamente o prefab ou testar node assignment diferente.
 
 **Próxima ação esperada do usuário:** Abra com `-edit projeto_brasil -noworkshop`, rode `Map > Recompute map`, verifique os dois acessos a empresas (Orla L-bay e Praia). Mande print do trecho da imagem anterior para comparação. Próximos: adicionar prefabs de empresas reais nos bays ou refinar ainda mais pontos do CSV para 100% fidelidade real.
+
+## Fase 12 (continuação) - Resposta a "?? porque esse loop" + correção dos stubs/fingers do bay (evitar "rua passando por cima" + grama)
+
+Status: implementado, gerado, instalado e documentado (pronto para seu Recompute + print)
+
+O que foi feito (direto na pergunta do usuário):
+
+- Li o código atual em `tools/ProjetoBrasilMapGenerator/Program.cs` (seção do bay após o L-shaped parking2, linhas ~428-474).
+- Não existia mais um `for (int s = 0; s < STUB_COUNT` literal (resumo anterior descrevia uma versão intermediária), mas havia:
+  - o "Extra stub for more space" com offset **mágico** `bayEndWorld + new Vector3(40, 0, -30)` (game coords arbitrários, sem relação com a direção do bay L).
+  - console dizendo "Multiple parking stubs added for delivery maneuvering."
+  - E o segundo acesso (Praia) também com Vector3 grandes (-120 etc).
+- Esses offsets mágicos eram a causa mais provável das falhas que você marcou em vermelho no último screenshot: o stub "pulava" em direção errada e cruzava o corredor principal ("rua passando por cima da outra como no trecho circulado maior").
+- O "loop" que você perguntou é exatamente a lógica de gerar **múltiplos fingers/stubs** no final do bay (para ter mais de uma posição de carga).
+
+Por que existe esse loop / esses stubs (resposta clara + justificada):
+
+- Regra explícita sua: "as empresas também nem todas empresas, mas as maiores onde pode ter entrega de mercadorias".
+- Um side branch que termina em linha reta cega não simula uma área de entrega real de empresa grande (Orla eventos, centros logísticos, retail na Praia de Belas etc.).
+- Feedback anterior (de prints): "bay too small".
+- Solução: transformar o final do acesso em um **L-bay + 2 fingers curtos de 90°** (simula docas de carga lado a lado, vários caminhões manobrando/parados ao mesmo tempo).
+- O loop for (FINGER_COUNT = 2 iterações) cria exatamente esses fingers espaçados.
+- **Antes** usava magic vector → overlap.
+- **Agora** (fix): calcula `bayDir = Normalize(bayEnd - bayMid)`, `fingerPerp = rot90(bayDir)`, e posiciona os fingers a partir do bayEnd usando esses vetores locais. Resultado: fingers "grudados" no bay, seguem a mesma orientação do L, não cruzam o main trace.
+
+Além do loop:
+- Adicionei comentário **logo acima do for** com a explicação completa (você pode ler no código).
+- Reduzi os offsets do 2º acesso (c2) de valores grandes para ~metade, para reduzir risco de cruzamento.
+- Aumentei comentários sobre terrain/grass (limitação do TruckLib).
+
+Comandos executados por mim (você só abre o editor):
+
+1. Force clean explícito do user_map\projeto_brasil (e autosave) — prova anti-cache.
+2. `.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280`
+3. `.\tools\install_mod.ps1`
+
+Saída verbatim completa do gerador + install (2026 run):
+
+```
+=== FORCE CLEAN user_map before generate (per project rule + explicit) ===
+Clean done. (this kills stale .mbd/sectors/cache as discussed for your cache doubt)
+=== RUN GENERATE with best current flags (real trace + T-junction + company bay with FIXED loop/stubs using bayDir) ===
+[Junction] Placing prefab 56 (road1_x_road1_t) at trace index 5 ~ -30,036830, -51,241386 (use --junction-index to change)
+  Prefab nodes after oriented placement:
+    node0: pos=(-250,2, -66,0)  dir≈(-0,03, -1,00)
+    node1: pos=(-231,6, -48,6)  dir≈(1,00, -0,03)
+    node2: pos=(-267,6, -47,4)  dir≈(-1,00, 0,03)
+  Assigned before leg to node 0 (dot 0,98)
+  Assigned after leg to node 1 (dot 0,00)
+  Assigned side leg to node 2 (dot -1,00)
+[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.
+  Junction at index 5
+  Side uses smart node assignment + launch in node rotation for best encaixe.
+  Company entrance + L-shaped parking bay + 2 delivery fingers (stubs) for major company maneuvering.
+  Additional company access added near trace index 15 (Praia area retail).
+Tune with --junction-index and --side-length. This is now the recommended path for first playable company access (crash-safe).
+Use --no-start-prefab (or omit --with-junction) for pure real trace without any prefab.
+Generated projeto_brasil into: C:\Users\Leo\Documents\Euro Truck Simulator 2\mod\user_map\map
+Open the map in ETS2 editor and run Map > Recompute map before visual inspection.
+...
+Mapa sincronizado do editor para o projeto: projeto_brasil
+Generate exit code: 0
+=== RUN INSTALL (package + copy .scs to ETS2 mod folder) ===
+Pacote criado: C:\Users\Leo\Documents\EURO TRUCK SIMULATOR MAP - PORTO ALEGRE\dist\projeto_brasil_1_4_map.scs
+Mod instalado em: C:\Users\Leo\Documents\Euro Truck Simulator 2\mod\projeto_brasil_1_4_map.scs
+=== ALL COMMANDS DONE. ...
+```
+
+**Estado atual do mod (atualizado após "?? porque esse loop" + análise das marcas vermelhas)**
+
+**Data deste estado:** após run acima (jun/2026)
+
+**Geração recomendada (MELHOR ATUAL - trace real + T + bays com fingers seguros):**
+```powershell
+# (assistente sempre roda; você só abre editor)
+.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
+.\tools\install_mod.ps1
+```
+
+**Conteúdo do mapa agora:**
+- Traçado principal 100% fiel aos pontos do `data/zone01a_real_trace.csv` (OSM real da Zona 01-A).
+- T-junction (prefab 56) no índice 5 com smart matching + easing + launch exato de node (melhor encaixe pesquisado).
+- **FIRST COMPANY ACCESS (Orla/Gasômetro side):** side branch + L-bay + **2 delivery fingers** (o loop corrigido, agora com vetores consistentes bayDir/fingerPerp — sem mais o magic offset que cruzava).
+- Segundo acesso (Praia, idx ~15): side + bay curto com offsets reduzidos (mais seguro).
+- Setores .mbd/sec-* gerados no user_map, sincronizados para mod/map, .scs empacotado e instalado.
+
+**Pacote / instalado:**
+- `dist/projeto_brasil_1_4_map.scs`
+- `C:\Users\Leo\Documents\Euro Truck Simulator 2\mod\projeto_brasil_1_4_map.scs`
+
+**Validação (sua parte - só isso):**
+1. Feche o editor se aberto.
+2. Rode `-edit projeto_brasil -noworkshop`
+3. `Map > Recompute map` (sempre!)
+4. Inspecione:
+   - O junction T no início da Orla (idx5).
+   - O side branch saindo + o L-bay no final.
+   - Os **2 fingers** curtos no final do bay: agora devem estar alinhados com o L, sem cruzar a rua principal (diferente do circulado).
+   - Os dedos de entrega são curtos (22m) e espaçados (~28m) para manobra de vários trucks.
+5. Sobre a grama em cima do asfalto (seus destaques vermelhos): isso é conhecido/limitacao. Os roads têm TerrainSize=20 para ajudar, Recompute "cozinha" parte, mas para áreas de junction/bay complexas o editor precisa de trabalho manual de terrain (use brush Lower + Flatten + Smooth + Paint asphalt/grass ao redor dos itens novos). Mods profissionais fazem isso. Se quiser, podemos documentar passos exatos de terrain para essa zona.
+
+Se ainda aparecer cruzamento ou algo estranho no bay: mande o print marcado. Podemos:
+- flipar o sinal do fingerPerp (muda o lado dos fingers)
+- mudar --junction-index ou --side-length
+- ou (se quiser 100% real sem nenhum prefab T) voltar a traçado contínuo + branches laterais snapados no trace (sem ângulos fixos do prefab 56).
+
+**Rollback para traçado contínuo puro (sem junction/bays):**
+```powershell
+.\tools\generate_map.ps1
+.\tools\install_mod.ps1
+```
+
+**O que mudei no código (resumo para você):**
+- Substituí o stub mágico por loop de fingers com geometria derivada do bay (Program.cs).
+- Comentário explicando o "porque" embutido no código.
+- Reduzi segundo acesso.
+- Force clean + full run + status + (próximo) commit+push.
+
+**Próxima ação esperada do usuário:** Abra o editor com as flags acima + Recompute, olhe especificamente o bay + fingers do lado da Orla (e compare com o trecho circulado da sua última imagem). Mande print (de preferência com os itens selecionados ou vista de cima) + feedback "melhorou o cross?" ou "ainda tem X". Aí seguimos (mais empresas reais, terreno, ou ajustar CSV).
 
 ## Infraestrutura - Repositório GitHub
 

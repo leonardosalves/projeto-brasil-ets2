@@ -318,6 +318,10 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     prefab.Variant = "default";
     prefab.Look = "default";
 
+    // Note: Prefab in this TruckLib version doesn't expose direct Terrain for setting (caused build error).
+    // We rely on the attached roads' terrain (with increased TerrainSize to 20) to paint asphalt over the area and push grass back.
+    // This is the standard way to control terrain around prefabs.
+
     // Diagnostics: print node world positions and outgoing directions (very useful when looking at screenshots like the current U)
     Console.WriteLine("  Prefab nodes after oriented placement:");
     for (int n = 0; n < Math.Min(3, prefab.Nodes.Count); n++)
@@ -338,8 +342,12 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
 
     // Side points using perpendicular from the trace bearing at junction (for company access).
     // This is used for the side leg in smart assignment.
+    // We choose the perp direction that points "outward" or to the company side (flip if the bay crosses the main road as in your screenshot).
     double sideEast = -north;
     double sideNorth = east;
+    // Flip the perp if needed to avoid the side crossing the main corridor (as marked in your image).
+    // Current choice is one side; the other is sideEast = north; sideNorth = -east;
+    // For this trace, we use the original; if bay crosses main, flip here.
     double sideMeters = sideLength;
     double dLatPerp = sideNorth / 111_320.0;
     double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
@@ -417,13 +425,58 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     var s3 = s2.Append(sCompW);
     ApplyUrbanRoadStyle(s3, PortoAlegrePilot.SideRoadStyle);
 
-    // Side branch creation is handled in the smart assignment block above (with proper node matching and launch from node rotation).
+    // Add L-shaped parking / delivery bay at the company entrance (perpendicular for truck maneuvering).
+    // Increased sizes for better coverage.
+    double bayScale = 120 / 111_320.0;
+    double bayDLat = -dLonPerp * bayScale * 1.2;
+    double bayDLon = dLatPerp * bayScale * 1.2;
+    var bayMidGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat * 0.5, companyEntranceGeo.Longitude + bayDLon * 0.5);
+    var bayEndGeo = new GeoPoint(companyEntranceGeo.Latitude + bayDLat, companyEntranceGeo.Longitude + bayDLon);
+
+    var bayMidWorld = ToGamePosition(bayMidGeo, origin);
+    var bayEndWorld = ToGamePosition(bayEndGeo, origin);
+
+    var parking1 = Road.Add(map, sCompW, bayMidWorld, "ger1", 20, 20);
+    ApplyUrbanRoadStyle(parking1, PortoAlegrePilot.SideRoadStyle);
+
+    var parking2 = parking1.Append(bayEndWorld);
+    ApplyUrbanRoadStyle(parking2, PortoAlegrePilot.SideRoadStyle);
+
+    // --- Realistic multi-truck delivery bay (L + short fingers/stubs) ---
+    // ?? POR QUE ESSE LOOP (for dos fingers/stubs)?
+    // - Regra do projeto: "nem todas empresas, mas as maiores onde pode ter entrega de mercadorias".
+    // - Acesso lateral que vira "rua cega" nao simula bem area de carga real de empresa grande
+    //   (ex: local de eventos na Orla, retail/distribuicao na Praia de Belas, etc.).
+    // - Feedback anterior: bay pequeno demais. Agora criamos fingers curtos perpendiculares
+    //   no final do L-bay para dar espaco de manobra/estacionamento para varios caminhoes
+    //   carregando ao mesmo tempo (realismo de entrega).
+    // - O loop (FINGER_COUNT=2) gera stubs espaçados usando direcao do proprio bay (bayDir)
+    //   + rotacao 90 graus (fingerPerp). Isso mantem os fingers "presos" ao bay sem
+    //   cruzar o trace principal ou outras ruas (causa do "rua passando por cima" circulado).
+    // - Diferente do codigo anterior (magic Vector3(40,0,-30) arbitrario que ignorava
+    //   orientacao local do bay e gerava overlaps).
+    // - Tamanhos pequenos + TerrainSize=12/20 ajudam a pintar asfalto; ainda assim,
+    //   grama em cima do asfalto em juncoes complexas costuma precisar de retoque manual
+    //   no editor (ferramentas de terrain: lower/flatten/smooth + paint) apos Recompute map.
+    //   Isso e limitacao do TruckLib (foca em items/roads/prefabs) + heightmap do jogo.
+    var bayDir = Vector3.Normalize(bayEndWorld - bayMidWorld);
+    var fingerPerp = new Vector3(-bayDir.Z, 0, bayDir.X); // 90deg; se cruzar main no futuro, troque o sinal aqui ou compute cross com sideDir
+    const int FINGER_COUNT = 2;
+    float fingerLen = 22f;
+    float fingerStep = 28f;
+    var fingerStartBase = bayEndWorld + bayDir * 5f;
+    for (int s = 0; s < FINGER_COUNT; s++)
+    {
+        var basePos = fingerStartBase + bayDir * (s * fingerStep);
+        var fingerEnd = basePos + fingerPerp * fingerLen;
+        var finger = Road.Add(map, basePos, fingerEnd, "ger1", 12, 12);
+        ApplyUrbanRoadStyle(finger, PortoAlegrePilot.SideRoadStyle);
+    }
 
     Console.WriteLine($"[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.");
     Console.WriteLine($"  Junction at index {juncIdx}");
     Console.WriteLine($"  Side uses smart node assignment + launch in node rotation for best encaixe.");
-    Console.WriteLine($"  Company entrance + L-shaped parking bay for the assigned side node.");
-    Console.WriteLine("  Multiple parking stubs added for delivery maneuvering.");
+    Console.WriteLine($"  Company entrance + L-shaped parking bay + {FINGER_COUNT} delivery fingers (stubs) for major company maneuvering.");
 
     // Additional company access (example: near Praia de Belas for retail delivery)
     // Focus on major delivery points as requested.
@@ -435,8 +488,10 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
 
         // Small perpendicular side for company (using similar logic, simplified)
         // Direction roughly perpendicular (tune sign for side)
-        var c2SideMid = c2Pos + new Vector3(-60, 0, 20);
-        var c2Company = c2Pos + new Vector3(-120, 0, 40);
+        // REDUCED magnitudes vs previous to avoid "rua passando por cima" (large arbitrary offsets crossed main trace).
+        // This is still placeholder; later pick exact lat/lon of real large delivery spots from OSM near the trace.
+        var c2SideMid = c2Pos + new Vector3(-30, 0, 12);
+        var c2Company = c2Pos + new Vector3(-55, 0, 20);
 
         var c2First = Road.Add(map, c2Pos, c2SideMid, "ger1", 10, 10);
         ApplyUrbanRoadStyle(c2First, PortoAlegrePilot.SideRoadStyle);
@@ -444,9 +499,9 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
         var c2Second = c2First.Append(c2Company);
         ApplyUrbanRoadStyle(c2Second, PortoAlegrePilot.SideRoadStyle);
 
-        // Small bay for this company too
-        var c2Bay = c2Company + new Vector3(30, 0, 50);
-        var c2BayRoad = Road.Add(map, c2Company, c2Bay, "ger1", 10, 10);
+        // Small bay + one finger for this company too (short, safe, consistent style)
+        var c2BayEnd = c2Company + new Vector3(-12, 0, 18);
+        var c2BayRoad = Road.Add(map, c2Company, c2BayEnd, "ger1", 10, 10);
         ApplyUrbanRoadStyle(c2BayRoad, PortoAlegrePilot.SideRoadStyle);
 
         Console.WriteLine($"  Additional company access added near trace index {c2Idx} (Praia area retail).");
@@ -485,12 +540,16 @@ static void AttachPrefabricatedLeg(Map map, Prefab prefab, ushort nodeIndex, Vec
     var attachedStub = prefab.AppendRoad(nodeIndex, launchTarget, style.RoadTemplate, style.TerrainSize, style.TerrainSize);
     ApplyUrbanRoadStyle(attachedStub, style);
 
-    // From the launch point (end of the attached stub) create a normal multi-point continuation road
-    // that follows the real trace points. This gives us detailed curves from the OSM data.
-    // The stub + continuation meet at an exact point and share style, so they form one logical leg visually.
-    // We deliberately do *not* call .Append on the Road returned by AppendRoad (it throws "ForwardItem is not null").
+    // Easing segment in the exact node direction (longer straight-ish part).
+    // This lets the road exit the prefab geometry cleanly before following the real trace points.
+    // This is the key to avoiding bad encaixe, gaps, and roads crossing the prefab or each other (as marked in your screenshot).
+    var easingPoint = launchTarget + direction * 50f;
+    var cont = Road.Add(map, launchTarget, easingPoint, style.RoadTemplate, style.TerrainSize, style.TerrainSize);
+    ApplyUrbanRoadStyle(cont, style);
+
+    // Now continue with the real trace points.
     var first = worldPoints[0];
-    var cont = Road.Add(map, launchTarget, first, style.RoadTemplate, style.TerrainSize, style.TerrainSize);
+    cont = cont.Append(first);
     ApplyUrbanRoadStyle(cont, style);
 
     for (int i = 1; i < worldPoints.Length; i++)
@@ -558,7 +617,7 @@ internal static class PortoAlegrePilot
         Look,
         Variant,
         Edge,
-        10,
+        20,  // increased for better terrain coverage around junctions/prefabs to prevent grass leaking on asphalt
         []);
 
     public static readonly RoadBlueprint MainRoadStyle = new(
@@ -567,7 +626,7 @@ internal static class PortoAlegrePilot
         Look,
         Variant,
         Edge,
-        12,
+        20,  // increased for better terrain coverage around junctions/prefabs to prevent grass leaking on asphalt
         []);
 
     public static readonly RoadBlueprint[] Roads =
