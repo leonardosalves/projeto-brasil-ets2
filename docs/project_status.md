@@ -823,6 +823,91 @@ Se ainda aparecer cruzamento ou algo estranho no bay: mande o print marcado. Pod
 
 **Próxima ação esperada do usuário:** Abra o editor com as flags acima + Recompute, olhe especificamente o bay + fingers do lado da Orla (e compare com o trecho circulado da sua última imagem). Mande print (de preferência com os itens selecionados ou vista de cima) + feedback "melhorou o cross?" ou "ainda tem X". Aí seguimos (mais empresas reais, terreno, ou ajustar CSV).
 
+## Fase 12 (continuação 2) - Melhoria no smart assignment: side agora sempre pega o melhor alinhamento possível (auto-flip de perp)
+
+Status: código melhorado, testado com run completo, push feito
+
+O que foi feito (para continuar o projeto após o fix do loop):
+
+- No último run (antes desta continuação), o assignment deu:
+    Assigned side leg to node 2 (dot -1,00)
+  Isso significava que a direção desejada para o side (company access) era quase oposta à direção "saindo" do nó do prefab. Podia contribuir para mau encaixe do branch lateral no T, gaps ou "rua por cima" perto do junction.
+
+- Adicionei lógica para **tentar as duas perps possíveis** (esquerda e direita do bearing do trace) e escolher automaticamente a que dá o **maior dot** com o nó que sobra depois de atribuir as pernas principais (before/after).
+
+- Principais:
+  - Assign mains primeiro (prioridade para o corredor real).
+  - Determina o nó restante.
+  - Para cada um dos 2 sinais de perp, calcula dirSide e o dot com o node restante.
+  - Fica com o sign que maximiza o dot do side.
+  - Recalcula os geo points (sideMid, companyEntrance) com o perp escolhido (para o bay ficar do lado "bom").
+  - Loga qual sign foi escolhido e o dot final.
+
+Resultado no run de teste desta continuação:
+
+```
+  Assigned before leg to node 0 (dot 0,98)
+  Assigned after leg to node 1 (dot 0,00)
+  Assigned side leg to node 2 (dot 1,00)  [auto-chose perp sign 1 for best alignment]
+```
+
+- Agora side tem dot +1.00 (perfeito) em vez de -1.00. O branch da empresa deve sair do prefab no ângulo mais próximo do que o nó "espera", reduzindo kinks e overlaps no T para o acesso lateral.
+
+- O after ainda tem dot ~0 (o ângulo do prefab T não casa 100% com a curva real do trace no idx 5) — isso é limitação conhecida do uso de prefab stock com traçado OSM real. Se o print do usuário mostrar problema específico ali, podemos mover o juncIdx (ex 4,6,7) ou aceitar pequeno ajuste manual no editor.
+
+- Código continua 100% determinístico + tunável por flags. Nenhum hardcoded de nó para side.
+
+Comandos (rodados pelo assistente):
+
+```powershell
+# clean + 
+.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
+.\tools\install_mod.ps1
+```
+
+Verbatim (parte relevante do console desta continuação):
+
+```
+[Junction] Placing prefab 56 (road1_x_road1_t) at trace index 5 ~ -30,036830, -51,241386 (use --junction-index to change)
+  ...
+  Assigned before leg to node 0 (dot 0,98)
+  Assigned after leg to node 1 (dot 0,00)
+  Assigned side leg to node 2 (dot 1,00)  [auto-chose perp sign 1 for best alignment]
+[Junction] Real trace split + T-junction prefab + FIRST COMPANY ACCESS generated.
+  ...
+  Company entrance + L-shaped parking bay + 2 delivery fingers (stubs) for major company maneuvering.
+...
+Generate exit=0
+Mod instalado em: ...
+```
+
+**Estado atual do mod (após continuação 2 - melhor alinhamento do side no T)**
+
+**Data:** run atual
+
+**Comando recomendado (trace real + T + bays com fingers + side agora bem alinhado):**
+```powershell
+.\tools\generate_map.ps1 --with-junction --junction-index 5 --side-length 280
+.\tools\install_mod.ps1
+```
+
+**O que melhorou visualmente esperado:**
+- O acesso lateral (company bay) deve "colar" melhor no prefab no ponto de saída, com menos chance de gap/overlap/cross no junction para o branch (o problema que o dot negativo anterior podia agravar).
+- Os 2 fingers do bay continuam corretos (bayDir based).
+- Trace principal 100% real.
+- 2 acessos a potenciais empresas grandes.
+
+**Validação:**
+- Abra `-edit projeto_brasil -noworkshop`
+- Map > Recompute map
+- Foque no T (idx5) + o side saindo + o L-bay + fingers no final.
+- Compare com prints anteriores (especialmente marcas vermelhas no junction e no bay).
+- Se o after leg (dot 0) ainda mostrar problema visível, experimente mudar índice: --junction-index 4 ou 6 (eu posso rodar).
+
+**Rollback:** sem flags.
+
+Atualizei status + commit + push (incluindo dados de mapa sincronizados).
+
 ## Infraestrutura - Repositório GitHub
 
 - Repositório: `projeto-brasil-ets2` → https://github.com/leonardosalves/projeto-brasil-ets2

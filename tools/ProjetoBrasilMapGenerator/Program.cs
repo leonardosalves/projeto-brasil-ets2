@@ -340,34 +340,27 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
     var beforeWorld = beforeGeo.Select(p => ToGamePosition(p, origin)).ToArray();
     var afterWorld = afterGeo.Select(p => ToGamePosition(p, origin)).ToArray();
 
-    // Side points using perpendicular from the trace bearing at junction (for company access).
-    // This is used for the side leg in smart assignment.
-    // We choose the perp direction that points "outward" or to the company side (flip if the bay crosses the main road as in your screenshot).
-    double sideEast = -north;
-    double sideNorth = east;
-    // Flip the perp if needed to avoid the side crossing the main corridor (as marked in your image).
-    // Current choice is one side; the other is sideEast = north; sideNorth = -east;
-    // For this trace, we use the original; if bay crosses main, flip here.
+    // Side direction (company access / bay): choose the perpendicular that BEST aligns with the remaining prefab node
+    // after the two main legs are assigned. This fixes cases where side got dot=-1 (anti-aligned) leading to
+    // poor encaixe or the side branch going "wrong way" at the T (contributing to overlaps/gaps in screenshots).
+    // We try both left and right perps from the trace bearing, pick the sign with highest dot to the leftover node.
+    // The geo points for sideMid/companyEntrance are computed with the *chosen* perp so the bay is on the good side.
     double sideMeters = sideLength;
-    double dLatPerp = sideNorth / 111_320.0;
-    double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
-    var sideMidGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.6, juncGeo.Longitude + dLonPerp * 0.6);
-    var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
 
-    // Smart node assignment: match each leg (main before, main after, side) to the prefab node whose direction best matches the leg's desired outgoing direction.
-    // This minimizes kinks and bad geometry at the junction (the main cause of misaligned/crossing roads in the editor).
-    // Compute desired directions from the trace at the junction.
+    // The two possible perps (one will point "out" toward a useful company area without immediately crossing main)
+    double[,] perpCandidates = new double[,] {
+        { -north, east },   // original
+        {  north, -east }   // flipped
+    };
+
+    // Compute desired for mains (before/after) from real trace
     Vector3 juncW = juncPos;
     Vector3 dirAfter = Vector3.Zero;
     if (afterWorld.Length > 0) dirAfter = Vector3.Normalize(afterWorld[0] - juncW);
     Vector3 dirBefore = Vector3.Zero;
-    if (beforeWorld.Length > 0) dirBefore = Vector3.Normalize(beforeWorld[0] - juncW);  // beforeWorld[0] is closest to junction in the before leg
+    if (beforeWorld.Length > 0) dirBefore = Vector3.Normalize(beforeWorld[0] - juncW);
 
-    // Side desired is the perpendicular we computed.
-    Vector3 dirSide = new Vector3((float)sideEast, 0, (float)sideNorth);  // from earlier perp calc
-    if (dirSide.LengthSquared() > 0.0001f) dirSide = Vector3.Normalize(dirSide);
-
-    // Get node directions
+    // Node outgoing directions from the oriented prefab
     var nodeDirs = new Vector3[3];
     for (int n = 0; n < 3; n++)
     {
@@ -378,28 +371,63 @@ static void AddRealTraceWithJunction(Map map, GeoPoint origin, string gameRoot, 
         nodeDirs[n] = d;
     }
 
-    // Simple assignment: for each leg, pick the best remaining node by dot product (highest alignment)
-    var legDirs = new[] { dirBefore, dirAfter, dirSide };
-    var legNames = new[] { "before", "after", "side" };
-    var assignedNode = new ushort[3]; // for before, after, side
+    // Assign mains first (they have priority for the through trace)
+    var assignedNode = new ushort[3];
     var used = new bool[3];
-    for (int leg = 0; leg < 3; leg++)
+    var mainLegs = new[] { new {dir=dirBefore, name="before", idx=0}, new {dir=dirAfter, name="after", idx=1} };
+    foreach (var leg in mainLegs)
     {
         float bestDot = -2;
         int bestN = -1;
         for (int n = 0; n < 3; n++)
         {
             if (used[n]) continue;
-            float dot = Vector3.Dot(legDirs[leg], nodeDirs[n]);
+            float dot = Vector3.Dot(leg.dir, nodeDirs[n]);
             if (dot > bestDot)
             {
                 bestDot = dot;
                 bestN = n;
             }
         }
-        assignedNode[leg] = (ushort)bestN;
+        assignedNode[leg.idx] = (ushort)bestN;
         used[bestN] = true;
-        Console.WriteLine($"  Assigned {legNames[leg]} leg to node {bestN} (dot {bestDot:F2})");
+        Console.WriteLine($"  Assigned {leg.name} leg to node {bestN} (dot {bestDot:F2})");
+    }
+
+    // Now pick best perp sign for the SIDE using the single remaining node (guarantees highest possible alignment for company access)
+    int remaining = -1;
+    for (int n = 0; n < 3; n++) if (!used[n]) { remaining = n; break; }
+    float bestSideDot = -2f;
+    int bestSign = 0;
+    Vector3 bestDirSide = Vector3.Zero;
+    for (int s = 0; s < 2; s++)
+    {
+        double se = perpCandidates[s, 0];
+        double sn = perpCandidates[s, 1];
+        var ds = new Vector3((float)se, 0, (float)sn);
+        if (ds.LengthSquared() > 0.0001f) ds = Vector3.Normalize(ds);
+        float dot = Vector3.Dot(ds, nodeDirs[remaining]);
+        if (dot > bestSideDot)
+        {
+            bestSideDot = dot;
+            bestSign = s;
+            bestDirSide = ds;
+        }
+    }
+    double sideEast = perpCandidates[bestSign, 0];
+    double sideNorth = perpCandidates[bestSign, 1];
+    Vector3 dirSide = bestDirSide;
+
+    double dLatPerp = sideNorth / 111_320.0;
+    double dLonPerp = sideEast / (111_320.0 * Math.Cos(juncGeo.Latitude * Math.PI / 180.0));
+    var sideMidGeo = new GeoPoint(juncGeo.Latitude + dLatPerp * 0.6, juncGeo.Longitude + dLonPerp * 0.6);
+    var companyEntranceGeo = new GeoPoint(juncGeo.Latitude + dLatPerp, juncGeo.Longitude + dLonPerp);
+
+    assignedNode[2] = (ushort)remaining;
+    Console.WriteLine($"  Assigned side leg to node {remaining} (dot {bestSideDot:F2})  [auto-chose perp sign {bestSign} for best alignment]");
+    if (bestSideDot < 0.3f)
+    {
+        Console.WriteLine("  WARNING: side still has low/negative dot even after trying both perps -- junction angle may need CSV tweak or manual editor fix.");
     }
 
     // Attach using the assigned nodes.
